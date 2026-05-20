@@ -31,7 +31,7 @@ async function main() {
 
   console.log("\nDeployment successful!");
   console.log("\nSave this contract address for your frontend:");
-  console.log(`   NEXT_PUBLIC_VOTING_CONTRACT_ADDRESS=${contractAddress}`);
+  console.log(`   NEXT_PUBLIC_CONTRACT_ADDRESS=${contractAddress}`);
 }
 
 main()

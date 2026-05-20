@@ -1,0 +1,65 @@
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# Dependencies
+node_modules/
+votely-platform/node_modules/
+
+# Next.js
+.next/
+votely-platform/.next/
+out/
+votely-platform/out/
+
+# Build output
+dist/
+build/
+coverage/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+votely-platform/.dev-server*.log
+
+# Prisma and generated local caches
+*.db
+*.db-journal
+
+# Hardhat
+cache/
+artifacts/
+votely-platform/cache/
+votely-platform/artifacts/
+votely-platform/contracts/cache/
+votely-platform/contracts/artifacts/
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+venv/
+.venv/
+face-recognition/venv/
+face-recognition/.venv/
+
+# Local face-recognition biometric samples
+face-recognition/data/*.jpg
+face-recognition/data/*.jpeg
+face-recognition/data/*.png
+face-recognition/data/*_embedding.json
+
+# OS and editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Accidental root lockfile; app lockfile lives in votely-platform/package-lock.json
+/package-lock.json
