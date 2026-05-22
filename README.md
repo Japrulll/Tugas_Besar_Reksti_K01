@@ -1,206 +1,220 @@
-# Votely Platform
+# Votely
 
-Platform e-voting berbasis blockchain dengan verifikasi biometrik wajah untuk pemilu yang aman dan transparan.
+Votely adalah platform e-voting dengan beberapa bagian aplikasi:
 
-## Fitur Utama
+- `votely-web`: web admin/user berbasis Next.js.
+- `votely-backend`: API backend berbasis Express dan TypeScript.
+- `votely-mobile`: frontend mobile/web ringan berbasis React + Vite.
+- `face-recognition`: API Python untuk verifikasi wajah.
 
-- **Autentikasi Biometrik** - Verifikasi wajah real-time menggunakan FaceNet
-- **Blockchain Voting** - Suara dicatat di Ethereum (Sepolia Testnet)
-- **Multi-level Election** - Mendukung pemilu Nasional, Provinsi, dan Kota
-- **Admin Dashboard** - Kelola pemilu dan kandidat
-- **Real-time Results** - Hasil voting langsung dari blockchain
+## Prasyarat
 
-## Arsitektur
+Pastikan sudah terinstall:
 
-```
-┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
-│   Next.js App   │────▶│  Face Recog API │────▶│   PostgreSQL    │
-│   (Frontend)    │     │    (Python)     │     │   (Supabase)    │
-└────────┬────────┘     └─────────────────┘     └─────────────────┘
-         │
-         ▼
-┌─────────────────┐
-│   Ethereum      │
-│   (Sepolia)     │
-└─────────────────┘
-```
+- Node.js 20 atau lebih baru
+- npm
+- Python 3.11 atau lebih baru
+- Docker dan Docker Compose, jika ingin menjalankan semua service dengan Docker
+- Database PostgreSQL atau Supabase
 
 ## Struktur Project
 
-```
-votely-platform/
-├── votely-platform/      # Next.js Frontend
-│   ├── app/              # App Router pages
-│   ├── components/       # React components
-│   ├── lib/              # Utilities & services
-│   ├── contracts/        # Solidity smart contracts
-│   └── prisma/           # Database schema
-│
-└── face-recognition/     # Python Face Recognition API
-    ├── api_server.py     # Flask API server
-    ├── face_detector.py  # MediaPipe face detection
-    ├── face_embedder.py  # FaceNet embeddings
-    └── Dockerfile        # Docker configuration
+```text
+.
+|-- votely-web/          # Aplikasi web Next.js
+|-- votely-backend/      # Backend Express + TypeScript
+|-- votely-mobile/       # Source frontend Vite yang dipakai root app
+|-- face-recognition/    # API face recognition Python
+|-- docker-compose.yml   # Konfigurasi Docker semua service
+|-- package.json         # Script Vite untuk menjalankan votely-mobile
+`-- .env                 # Environment variable bersama
 ```
 
-## Quick Start
+## Environment Variable
 
-### Prerequisites
+Buat file `.env` di root project. Contoh isi minimal:
 
-- Node.js 18+
-- Python 3.11+
-- Docker (optional)
-- PostgreSQL (atau Supabase)
+```env
+DATABASE_URL="postgresql://user:password@host:5432/database"
+DIRECT_URL="postgresql://user:password@host:5432/database"
 
-### 1. Clone Repository
+JWT_SECRET="ganti-dengan-secret"
+ENCRYPTION_KEY="ganti-dengan-key"
+
+NEXT_PUBLIC_SUPABASE_URL="https://project.supabase.co"
+NEXT_PUBLIC_SUPABASE_ANON_KEY="supabase-anon-key"
+SUPABASE_SERVICE_ROLE_KEY="supabase-service-role-key"
+
+NEXT_PUBLIC_THIRDWEB_CLIENT_ID="thirdweb-client-id"
+NEXT_PUBLIC_CONTRACT_ADDRESS="0x..."
+NEXT_PUBLIC_RPC_URL="http://127.0.0.1:8545"
+SEPOLIA_RPC_URL="https://..."
+PRIVATE_KEY="private-key-wallet"
+
+PYTHON_API_URL="http://127.0.0.1:5000"
+FACE_RECOGNITION_API_URL="http://127.0.0.1:5000"
+BACKEND_PORT=4000
+CORS_ORIGIN="http://localhost:3000,http://localhost:5173"
+VITE_API_BASE_URL="http://localhost:4000"
+```
+
+Sesuaikan value dengan konfigurasi lokal/Supabase/blockchain yang digunakan.
+
+## Cara Menjalankan Secara Manual
+
+### 1. Install dependency
+
+Jalankan dari root project:
 
 ```bash
-git clone https://github.com/mahesa005/votely-platform.git
-cd votely-platform
-```
-
-### 2. Setup Next.js App
-
-```bash
-cd votely-platform
 npm install
-cp .env.example .env  # Edit dengan credentials Anda
-npx prisma generate
-npm run dev
+cd votely-web && npm install
+cd ../votely-backend && npm install
+cd ..
 ```
 
-### 3. Setup Face Recognition API
+### 2. Generate Prisma Client
 
-**Option A: Docker (Recommended)**
+Backend menggunakan schema Prisma dari `votely-web/prisma/schema.prisma`.
 
 ```bash
-cd face-recognition
-docker-compose up -d --build
+cd votely-backend
+npm run prisma:generate
+cd ..
 ```
 
-**Option B: Manual**
+Jika perlu menjalankan migrasi database:
+
+```bash
+cd votely-backend
+npm run prisma:migrate:dev
+cd ..
+```
+
+### 3. Jalankan Face Recognition API
 
 ```bash
 cd face-recognition
 python -m venv venv
-venv/Scripts/activate  # Windows
-# source venv/bin/activate  # Linux/Mac
+venv\Scripts\activate
 pip install -r requirements.txt
 python api_server.py
 ```
 
-### 4. Environment Variables
+Service berjalan di:
 
-Buat file `.env` di folder `votely-platform/`:
-
-```env
-# Database
-DATABASE_URL="postgresql://..."
-DIRECT_URL="postgresql://..."
-
-# JWT
-JWT_SECRET="your-secret-key"
-
-# Blockchain
-NEXT_PUBLIC_CONTRACT_ADDRESS="0x..."
-PRIVATE_KEY="your-wallet-private-key"
-NEXT_PUBLIC_ALCHEMY_API_KEY="your-alchemy-key"
-
-# Face Recognition API
-FACE_RECOGNITION_API_URL="http://localhost:5000"
+```text
+http://localhost:5000
 ```
 
-## Docker Deployment
-
-### Face Recognition API
-
-```bash
-cd face-recognition
-
-# Build & Run
-docker-compose up -d --build
-
-# Check logs
-docker-compose logs -f
-
-# Stop
-docker-compose down
-```
-
-### Health Check
+Health check:
 
 ```bash
 curl http://localhost:5000/health
 ```
 
-## 📡 API Endpoints
+### 4. Jalankan Backend
 
-### Face Recognition API (Port 5000)
+Buka terminal baru:
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/health` | GET | Health check |
-| `/verify-face` | POST | Verify face against reference |
-| `/generate-embedding` | POST | Generate face embedding |
+```bash
+cd votely-backend
+npm run dev
+```
 
-### Next.js API Routes
+Backend berjalan di:
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/api/auth/login` | POST | User login |
-| `/api/auth/register` | POST | User registration |
-| `/api/elections` | GET/POST | List/Create elections |
-| `/api/vote/cast` | POST | Cast vote to blockchain |
+```text
+http://localhost:4000
+```
 
-## Security Features
+### 5. Jalankan Web Next.js
 
-- **JWT Authentication** - Secure token-based auth
-- **Face Verification** - 512-dim FaceNet embeddings
-- **Blockchain Immutability** - Votes cannot be altered
-- **HTTPOnly Cookies** - XSS protection
+Buka terminal baru:
 
-## Tech Stack
+```bash
+cd votely-web
+npm run dev
+```
 
-**Frontend:**
-- Next.js 16 (App Router)
-- React 19
-- Tailwind CSS
-- shadcn/ui
+Web berjalan di:
 
-**Backend:**
-- Next.js API Routes
-- Prisma ORM
-- PostgreSQL (Supabase)
+```text
+http://localhost:3000
+```
 
-**Face Recognition:**
-- Python Flask
-- TensorFlow / Keras
-- MediaPipe
-- FaceNet (512-dim)
+### 6. Jalankan Frontend Mobile/Vite
 
-**Blockchain:**
-- Solidity
-- Hardhat
-- Ethers.js
-- Sepolia Testnet
+Buka terminal baru dari root project:
 
-## License
+```bash
+npm run dev
+```
 
-MIT License - see [LICENSE](LICENSE) for details.
+Vite app berjalan di:
 
-# React + Vite
+```text
+http://localhost:5173
+```
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+## Cara Menjalankan Dengan Docker
 
-Currently, two official plugins are available:
+Dari root project:
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+```bash
+docker compose up --build
+```
 
-## React Compiler
+Service yang akan berjalan:
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- Web: `http://localhost:3000`
+- Mobile/Vite: `http://localhost:5173`
+- Backend: `http://localhost:4000`
+- Face Recognition API: `http://localhost:5000`
 
-## Expanding the ESLint configuration
+Untuk menghentikan semua container:
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+```bash
+docker compose down
+```
+
+## Script Penting
+
+Root project:
+
+```bash
+npm run dev       # menjalankan Vite app / votely-mobile
+npm run build     # build Vite app
+npm run lint      # lint root app
+npm run preview   # preview hasil build Vite
+```
+
+`votely-web`:
+
+```bash
+npm run dev              # menjalankan Next.js
+npm run build            # generate Prisma client dan build Next.js
+npm run start            # menjalankan hasil build
+npm run lint             # lint web
+npm run hardhat:compile  # compile smart contract
+npm run hardhat:test     # test smart contract
+```
+
+`votely-backend`:
+
+```bash
+npm run dev                 # menjalankan backend mode development
+npm run build               # compile TypeScript
+npm run start               # menjalankan dist/index.js
+npm run typecheck           # cek TypeScript tanpa build output
+npm run test                # build dan jalankan test
+npm run prisma:generate     # generate Prisma client backend
+npm run prisma:migrate:dev  # migrasi database development
+```
+
+## Catatan
+
+- Pastikan `.env` root sudah terisi sebelum menjalankan backend dan web.
+- Jalankan `face-recognition` sebelum fitur verifikasi wajah dipakai.
+- Jalankan backend sebelum membuka Vite mobile app karena mobile app memanggil API ke `http://localhost:4000`.
+- Jangan commit value rahasia seperti `PRIVATE_KEY`, `JWT_SECRET`, atau `SUPABASE_SERVICE_ROLE_KEY`.
