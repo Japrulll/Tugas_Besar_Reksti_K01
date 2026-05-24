@@ -8,6 +8,10 @@ export function setStoredToken(token) {
   if (token) localStorage.setItem('votely_token', token)
 }
 
+export function clearStoredToken() {
+  localStorage.removeItem('votely_token')
+}
+
 export async function apiFetch(path, options = {}) {
   const token = getStoredToken()
   const headers = {
@@ -39,4 +43,43 @@ export async function login(nik, password) {
   })
   setStoredToken(data.token)
   return data
+}
+
+export async function logout() {
+  try {
+    await apiFetch('/api/auth/logout', { method: 'POST' })
+  } finally {
+    clearStoredToken()
+  }
+}
+
+export async function getCurrentUser() {
+  return apiFetch('/api/auth/me')
+}
+
+export async function getElectionsForUser() {
+  return apiFetch('/api/elections?forUser=true')
+}
+
+export async function getElection(electionId, includeResults = false) {
+  const query = includeResults ? '?includeResults=true' : ''
+  return apiFetch(`/api/elections/${electionId}${query}`)
+}
+
+export async function checkVote(electionId) {
+  return apiFetch(`/api/vote/check?electionId=${electionId}&_t=${Date.now()}`)
+}
+
+export async function verifyFace({ image, nik, electionId }) {
+  return apiFetch('/api/face-verify', {
+    method: 'POST',
+    body: JSON.stringify({ image, nik, electionId }),
+  })
+}
+
+export async function castVote({ electionId, candidateId, voteToken }) {
+  return apiFetch('/api/vote/cast', {
+    method: 'POST',
+    body: JSON.stringify({ electionId, candidateId, voteToken }),
+  })
 }

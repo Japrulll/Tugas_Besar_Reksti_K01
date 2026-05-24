@@ -68,8 +68,10 @@ Jalankan dari root project:
 
 ```bash
 npm install
-cd votely-web && npm install
-cd ../votely-backend && npm install
+cd votely-web
+npm install
+cd ../votely-backend
+npm install
 cd ..
 ```
 
@@ -93,12 +95,14 @@ cd ..
 
 ### 3. Jalankan Face Recognition API
 
+Gunakan Python 3.11 untuk service ini. Di Windows, jalankan:
+
 ```bash
 cd face-recognition
-python -m venv venv
-venv\Scripts\activate
-pip install -r requirements.txt
-python api_server.py
+py -3.11 -m venv venv
+.\venv\Scripts\python.exe -m pip install --upgrade pip
+.\venv\Scripts\python.exe -m pip install -r requirements.txt
+.\venv\Scripts\python.exe api_server.py
 ```
 
 Service berjalan di:
@@ -216,5 +220,15 @@ npm run prisma:migrate:dev  # migrasi database development
 
 - Pastikan `.env` root sudah terisi sebelum menjalankan backend dan web.
 - Jalankan `face-recognition` sebelum fitur verifikasi wajah dipakai.
+- Jika NumPy error saat menjalankan `face-recognition`, hapus folder `face-recognition/venv`, lalu buat ulang venv dengan Python 3.11 memakai command di atas.
+- Jika OpenCV error seperti `module 'cv2' has no attribute 'data'`, jalankan:
+
+```bash
+cd face-recognition
+.\venv\Scripts\python.exe -m pip uninstall -y opencv-python opencv-python-headless opencv-contrib-python
+.\venv\Scripts\python.exe -m pip install --no-cache-dir --force-reinstall opencv-python-headless
+.\venv\Scripts\python.exe -m pip install -r requirements.txt
+```
+
 - Jalankan backend sebelum membuka Vite mobile app karena mobile app memanggil API ke `http://localhost:4000`.
 - Jangan commit value rahasia seperti `PRIVATE_KEY`, `JWT_SECRET`, atau `SUPABASE_SERVICE_ROLE_KEY`.

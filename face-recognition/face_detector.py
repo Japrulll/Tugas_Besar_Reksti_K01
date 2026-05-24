@@ -6,6 +6,7 @@ Supports multiple backends: OpenCV, MediaPipe, MTCNN
 import cv2
 import numpy as np
 from typing import List, Tuple, Optional
+from pathlib import Path
 import config
 
 
@@ -35,8 +36,21 @@ class FaceDetector:
     
     def _init_opencv(self):
         """Initialize OpenCV Haar Cascade detector"""
-        cascade_path = cv2.data.haarcascades + 'haarcascade_frontalface_default.xml'
+        cascade_file = 'haarcascade_frontalface_default.xml'
+        if hasattr(cv2, "data") and hasattr(cv2.data, "haarcascades"):
+            cascade_path = cv2.data.haarcascades + cascade_file
+        else:
+            cascade_path = str(Path(cv2.__file__).resolve().parent / "data" / cascade_file)
+
+        if not Path(cascade_path).exists():
+            raise RuntimeError(
+                "OpenCV Haar Cascade file was not found. Reinstall OpenCV with: "
+                "python -m pip install --force-reinstall opencv-python-headless"
+            )
+
         self.detector = cv2.CascadeClassifier(cascade_path)
+        if self.detector.empty():
+            raise RuntimeError(f"Failed to load OpenCV Haar Cascade from: {cascade_path}")
         print(f"[INFO] Initialized OpenCV Haar Cascade detector")
     
     def _init_mediapipe(self):

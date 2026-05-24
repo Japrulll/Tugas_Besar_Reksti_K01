@@ -1,7 +1,7 @@
-import React, { useState } from 'react'
+import { useState } from 'react'
 import { login } from '../lib/api'
 
-function loginPage() {
+function LoginPage({ onLoggedIn }) {
   const [nik, setNik] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -12,73 +12,68 @@ function loginPage() {
     setError('')
     setLoading(true)
     try {
-      await login(nik, password)
-      window.location.reload()
+      if (!nik || !password) {
+        throw new Error('NIK dan password wajib diisi.')
+      }
+      const result = await login(nik, password)
+      await onLoggedIn?.(result.data)
     } catch (err) {
-      setError(err.message || 'Login failed')
+      setError(err.message || 'Login gagal.')
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <div className='flex bg-gradient min-h-screen select-none items-center justify-center'>
-        <form onSubmit={handleLogin} className='flex flex-col gap-12.5'>
-            <img src='/VotelyNew_White.png' className='h-[53px]'></img>
-            <div className='flex flex-col bg-white border border-white p-8 rounded-lg items-center  gap-8'>
-                <div className=' items-center text-center'>
-                    <img src='/userlogo.png' className='w-20 h-20'>
-                    </img>
-                    <div className='font-black font-google text-3xl'>
-                        Login
-                    </div>
-                </div>
+    <main className="login-shell">
+      <form onSubmit={handleLogin} className="login-card" noValidate>
+        <img src="/VotelyNew_White.png" className="login-brand" alt="Votely" />
+        <section className="auth-panel">
+          <div className="auth-heading">
+            <img src="/userlogo.png" className="auth-avatar" alt="" />
+            <p className="eyebrow">Mobile Voting</p>
+            <h1>Masuk ke Votely</h1>
+            <p>Gunakan akun pemilih untuk verifikasi wajah dan mencoblos secara aman.</p>
+          </div>
 
-                <div className='flex flex-col w-full gap-3'>
-                    <div className='flex flex-row bg-[#E7E9F0] rounded-xl justify-between p-2 px-5'>
-                        <input
-                            type='text'
-                            placeholder='NIK'
-                            value={nik}
-                            onChange={(event) => setNik(event.target.value)}
-                            className='font-google text-sm outline-none focus:outline-none'
-                        />
-                        {/* <img src='/userlogo.png' className='h-5'/> */}
-                    </div>
-                    <div className='flex flex-row bg-[#E7E9F0] rounded-xl justify-between p-2 px-5'>
-                        <input
-                            type='password'
-                            placeholder='Password'
-                            value={password}
-                            onChange={(event) => setPassword(event.target.value)}
-                            className='font-google text-sm outline-none focus:outline-none'
-                        />
-                    </div>
-                </div>
+          <div className="form-stack">
+            <label className="field">
+              <span>NIK</span>
+              <input
+                type="text"
+                inputMode="numeric"
+                placeholder="Masukkan 16 digit NIK"
+                value={nik}
+                onChange={(event) => setNik(event.target.value)}
+                disabled={loading}
+              />
+            </label>
+            <label className="field">
+              <span>Password</span>
+              <input
+                type="password"
+                placeholder="Masukkan password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                disabled={loading}
+              />
+            </label>
+          </div>
 
-                {error && (
-                    <p className='text-sm text-red-600 text-center max-w-64'>
-                        {error}
-                    </p>
-                )}
+          {error && <p className="error-message">{error}</p>}
 
-                <div className='flex flex-col w-full gap-3 items-center'>
-                    <button disabled={loading} className='w-full bg-[#82A8D1] font-bold text-white p-2 rounded-xl hover:scale-105 cursor-pointer duration-200 disabled:opacity-60 disabled:hover:scale-100'>
-                        {loading ? 'Logging in...' : 'Login'}
-                    </button>
-                    <div className='gap-1.5 w-full text-center'>
-                        <p className='text-sm'>
-                            Having some trouble while logging in?
-                        </p>
-                        <p className='text-sm font-bold text-[#3167A9]'>
-                            Get Help Logged In
-                        </p>
-                    </div>
-                </div>
-            </div>
-        </form>
-    </div>
+          <button type="submit" disabled={loading} className="primary-button">
+            {loading ? 'Memverifikasi...' : 'Masuk'}
+          </button>
+
+          <div className="auth-note">
+            <span>Butuh bantuan login?</span>
+            <strong>Hubungi petugas TPS</strong>
+          </div>
+        </section>
+      </form>
+    </main>
   )
 }
 
-export default loginPage
+export default LoginPage
