@@ -7,10 +7,31 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+dist-ssr/
+.next/
+out/
+coverage/
+*.tsbuildinfo
+
+# Generated files
+votely-backend/generated/
+
+# Environment files
+.env
+.env.*
+!.env.example
 *.local
+
+# Python
+__pycache__/
+*.py[cod]
+venv/
+.venv/
 
 # Editor directories and files
 .vscode/*
