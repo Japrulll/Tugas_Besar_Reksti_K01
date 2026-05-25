@@ -1,12 +1,75 @@
 @import url('https://fonts.googleapis.com/css2?family=Quicksand:wght@400;500;600;700&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Google+Sans:ital,opsz,wght@0,17..18,400..700;1,17..18,400..700&display=swap');
 
-
-.bg-gradient{
-  background: linear-gradient(0deg, #2A4A99, #293741);
+:root {
+  --brand-teal: #1fd7be;
+  --brand-lime: #c8ff4d;
+  --brand-navy: #0f1b2b;
+  --brand-slate: #263245;
+  --brand-ink: #1b2434;
+  --brand-soft: #f2f6fb;
 }
 
-@theme {
-    --font-google: "Google Sans", "sans-serif";
-    --font-qsands: "Quicksand", "sans-serif";
+body {
+  font-family: "Google Sans", "Quicksand", system-ui, sans-serif;
+  background: var(--brand-soft);
+  color: #1e293b;
+}
+
+.bg-gradient {
+  background: linear-gradient(140deg, #0f1b2b 0%, #1f3c5a 45%, #2b6e8b 100%);
+}
+
+.votely-bg {
+  background: radial-gradient(1200px 500px at 10% 10%, rgba(31, 215, 190, 0.2), transparent 60%),
+    radial-gradient(900px 420px at 90% 20%, rgba(200, 255, 77, 0.2), transparent 55%),
+    linear-gradient(180deg, #f7f9fc 0%, #eef3f9 100%);
+}
+
+.glass-panel {
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(18px);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.08);
+}
+
+.border-glow {
+  border: 1px solid rgba(31, 215, 190, 0.25);
+  box-shadow: 0 0 0 1px rgba(31, 215, 190, 0.1);
+}
+
+.btn-primary {
+  background: linear-gradient(120deg, var(--brand-teal), #17c5ae);
+  color: #ffffff;
+  box-shadow: 0 12px 24px rgba(31, 215, 190, 0.25);
+}
+
+.btn-secondary {
+  background: #ffffff;
+  color: #1f2937;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+}
+
+.badge-soft {
+  background: rgba(31, 215, 190, 0.12);
+  color: #0b6f66;
+  border: 1px solid rgba(31, 215, 190, 0.3);
+}
+
+.badge-muted {
+  background: rgba(148, 163, 184, 0.15);
+  color: #64748b;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+}
+
+.badge-warning {
+  background: rgba(245, 158, 11, 0.15);
+  color: #b45309;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.badge-success {
+  background: rgba(34, 197, 94, 0.15);
+  color: #15803d;
+  border: 1px solid rgba(34, 197, 94, 0.3);
 }
