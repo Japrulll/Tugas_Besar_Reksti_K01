@@ -37,7 +37,7 @@ export default function AuthLayout({
   return (
     <div className="min-h-screen flex">
       {/* Left Side - Branding & Info */}
-      <div className="hidden lg:flex lg:w-1/2 xl:w-[55%] relative overflow-hidden bg-gradient-to-br from-[#0F1419] via-[#1a2332] to-[#0d2847]">
+      <div className="hidden lg:flex lg:w-[65%] relative overflow-hidden bg-gradient-to-br from-[#0F1419] via-[#1a2332] to-[#0d2847]">
         {/* Animated Background Orbs */}
         <FloatingOrb className="w-96 h-96 bg-[#1FD7BE] -top-20 -left-20" delay={0} />
         <FloatingOrb className="w-80 h-80 bg-[#6366F1] bottom-20 right-10" delay={1} />
@@ -128,7 +128,7 @@ export default function AuthLayout({
       </div>
       
       {/* Right Side - Auth Form */}
-      <div className="flex-1 flex flex-col votely-bg relative">
+      <div className="flex-1 lg:flex-none lg:w-[35%] flex flex-col votely-bg relative">
         {/* Mobile Logo */}
         <div className="lg:hidden p-6 relative z-20">
           <Link href="/" className="inline-flex items-center gap-2">
@@ -143,7 +143,7 @@ export default function AuthLayout({
         </div>
         
         {/* Form Container */}
-        <div className="flex-1 flex items-center justify-center px-4 sm:px-6 lg:px-8 py-8 relative z-20">
+        <div className="flex-1 flex items-center justify-center px-4 sm:px-6 lg:px-6 py-8 relative z-20">
           <div className={`w-full max-w-md transition-all duration-500 ${mounted ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}`}>
             {children}
           </div>

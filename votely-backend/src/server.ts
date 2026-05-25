@@ -20,7 +20,13 @@ export function createApp() {
   app.use(cookieParser());
 
   app.get("/health", (_req, res) => {
-    res.json({ status: "ok", service: "votely-backend", timestamp: new Date().toISOString() });
+    res.json({
+      status: "ok",
+      service: "votely-backend",
+      faceBypassEnabled: env.faceBypassEnabled,
+      pythonApiUrl: env.pythonApiUrl,
+      timestamp: new Date().toISOString(),
+    });
   });
 
   app.use("/api/auth", authRouter);

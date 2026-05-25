@@ -47,6 +47,14 @@ export async function GET(
     }
 
     const { electionId } = await context.params;
+    const election = await getElectionById(electionId);
+    if (!election || election.createdBy !== user.id || election.deletedAt) {
+      return NextResponse.json(
+        { success: false, error: 'Election not found' },
+        { status: 404 }
+      );
+    }
+
     const candidates = await getCandidatesByElection(electionId);
 
     return NextResponse.json({
@@ -101,6 +109,13 @@ export async function POST(
     // Get election to check status
     const election = await getElectionById(electionId);
     if (!election) {
+      return NextResponse.json(
+        { success: false, error: 'Election not found' },
+        { status: 404 }
+      );
+    }
+
+    if (election.createdBy !== user.id) {
       return NextResponse.json(
         { success: false, error: 'Election not found' },
         { status: 404 }
@@ -203,6 +218,13 @@ export async function DELETE(
       );
     }
 
+    if (election.createdBy !== user.id) {
+      return NextResponse.json(
+        { success: false, error: 'Election not found' },
+        { status: 404 }
+      );
+    }
+
     // Check if election is soft deleted
     if (election.deletedAt) {
       return NextResponse.json(
@@ -240,6 +262,13 @@ export async function DELETE(
     const candidate = await prisma.candidate.findUnique({
       where: { id: BigInt(candidateId) }
     });
+
+    if (!candidate || candidate.electionId !== election.id) {
+      return NextResponse.json(
+        { success: false, error: 'Candidate not found' },
+        { status: 404 }
+      );
+    }
 
     if (candidate?.chainCandidateId) {
       return NextResponse.json(

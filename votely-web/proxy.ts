@@ -11,6 +11,10 @@ const authRoutes = ["/auth/login"];
 const voterOnlyMobileRoutes = ["/dashboard", "/elections", "/auth/register"];
 const publicRoutes = ["/", "/api/auth"];
 
+function matchesRoute(pathname: string, route: string) {
+  return pathname === route || pathname.startsWith(`${route}/`);
+}
+
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const token = request.cookies.get("token")?.value;
@@ -20,7 +24,7 @@ export async function proxy(request: NextRequest) {
     process.env.JWT_SECRET || "fallback-secret"
   );
 
-  if (voterOnlyMobileRoutes.some((route) => pathname.startsWith(route))) {
+  if (voterOnlyMobileRoutes.some((route) => matchesRoute(pathname, route))) {
     if (token) {
       try {
         const { payload } = await jwtVerify(token, secret);

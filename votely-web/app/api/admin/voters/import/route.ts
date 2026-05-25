@@ -49,9 +49,9 @@ export async function POST(request: NextRequest) {
 
     const election = await prisma.election.findUnique({
       where: { id: BigInt(electionId) },
-      select: { id: true, deletedAt: true },
+      select: { id: true, deletedAt: true, createdBy: true },
     })
-    if (!election || election.deletedAt) {
+    if (!election || election.deletedAt || election.createdBy !== user.id) {
       return NextResponse.json({ success: false, error: 'Election tidak ditemukan.' }, { status: 404 })
     }
 

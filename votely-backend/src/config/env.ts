@@ -4,6 +4,10 @@ import path from "node:path";
 dotenv.config({ path: path.resolve(process.cwd(), "../.env") });
 dotenv.config({ path: path.resolve(process.cwd(), ".env") });
 
+function parseBoolean(value: string | undefined) {
+  return (value || "").trim().replace(/^['"]|['"]$/g, "").toLowerCase() === "true";
+}
+
 export const env = {
   port: Number(process.env.PORT || process.env.BACKEND_PORT || 4000),
   nodeEnv: process.env.NODE_ENV || "development",
@@ -11,7 +15,7 @@ export const env = {
   jwtSecret: process.env.JWT_SECRET || "fallback-secret",
   encryptionKey: process.env.ENCRYPTION_KEY || "",
   pythonApiUrl: process.env.PYTHON_API_URL || process.env.FACE_RECOGNITION_API_URL || "http://127.0.0.1:5000",
-  faceBypassEnabled: process.env.FACE_BYPASS_ENABLED === "true",
+  faceBypassEnabled: parseBoolean(process.env.FACE_BYPASS_ENABLED),
   thirdwebClientId: process.env.NEXT_PUBLIC_THIRDWEB_CLIENT_ID || "",
   contractAddress: process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || "",
   adminPrivateKey: process.env.PRIVATE_KEY || "",

@@ -68,6 +68,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (election.createdBy !== userData.userId) {
+      return NextResponse.json(
+        { success: false, error: 'Election not found' },
+        { status: 404 }
+      );
+    }
+
     // Check if election is deployed to blockchain
     if (!election.chainElectionId) {
       return NextResponse.json(

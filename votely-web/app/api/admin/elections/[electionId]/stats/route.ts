@@ -39,6 +39,13 @@ export async function GET(
       );
     }
 
+    if (election.createdBy !== user.id) {
+      return NextResponse.json(
+        { success: false, error: 'Election not found' },
+        { status: 404 }
+      );
+    }
+
     // Get vote counts per candidate
     const voteCounts = await prisma.vote.groupBy({
       by: ['candidateId'],

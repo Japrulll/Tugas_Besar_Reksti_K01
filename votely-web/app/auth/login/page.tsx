@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -285,12 +286,16 @@ export default function LoginPage() {
                   </>
                 )}
               </Button>
+
             </form>
           </div>
 
           <div className="border-t border-[#DDE6F4] px-6 py-4 sm:px-8">
             <p className="text-center text-xs text-[#9AA3B8]">
-              Akun pemilih digunakan melalui aplikasi mobile.
+              Belum punya akun admin?{" "}
+              <Link href="/auth/register-admin" className="font-semibold text-[#1FD7BE] hover:text-[#17c5ae]">
+                Register Admin
+              </Link>
             </p>
           </div>
         </div>

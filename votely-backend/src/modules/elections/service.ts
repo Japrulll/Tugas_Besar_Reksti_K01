@@ -24,9 +24,12 @@ export async function getElectionByIdForUser(id: string, userId: string) {
   return getElectionById(id);
 }
 
-export function getAllElections(includeDeleted = false) {
+export function getAllElections(includeDeleted = false, createdBy?: string) {
   return prisma.election.findMany({
-    where: includeDeleted ? {} : { deletedAt: null },
+    where: {
+      ...(includeDeleted ? {} : { deletedAt: null }),
+      ...(createdBy ? { createdBy } : {}),
+    },
     include: {
       candidates: { orderBy: { orderIndex: "asc" } },
       creator: { include: { penduduk: true } },

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-import { getAllElections, createElection, deleteElection } from '@/lib/elections';
+import { deleteElection } from '@/lib/elections';
 import { getCurrentUserFromToken } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
@@ -44,7 +44,8 @@ export async function GET(request: NextRequest) {
     // Fetch elections with vote counts (exclude soft-deleted)
     const elections = await prisma.election.findMany({
       where: {
-        deletedAt: null
+        deletedAt: null,
+        createdBy: user.id,
       },
       include: {
         candidates: {
@@ -211,6 +212,21 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json(
         { success: false, error: 'Election ID is required' },
         { status: 400 }
+      );
+    }
+
+    const election = await prisma.election.findFirst({
+      where: {
+        id: BigInt(id),
+        createdBy: user.id,
+      },
+      select: { id: true },
+    });
+
+    if (!election) {
+      return NextResponse.json(
+        { success: false, error: 'Election not found' },
+        { status: 404 }
       );
     }
 

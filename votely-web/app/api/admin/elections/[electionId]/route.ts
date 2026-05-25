@@ -67,6 +67,13 @@ export async function GET(
       );
     }
 
+    if (election.createdBy !== user.id) {
+      return NextResponse.json(
+        { success: false, error: 'Election not found' },
+        { status: 404 }
+      );
+    }
+
     // Get vote counts if requested
     let voteCounts: Record<string, number> = {}
     let totalVotes = 0
@@ -127,10 +134,31 @@ export async function PUT(
 
     const { electionId } = await context.params;
     const body = await request.json();
+    const {
+      id: _id,
+      createdBy: _createdBy,
+      creator: _creator,
+      candidates: _candidates,
+      votes: _votes,
+      participants: _participants,
+      _count,
+      chainElectionId: _chainElectionId,
+      deletedAt: _deletedAt,
+      createdAt: _createdAt,
+      updatedAt: _updatedAt,
+      ...updateData
+    } = body;
 
     // Get current election to check status
     const currentElection = await getElectionById(electionId);
     if (!currentElection) {
+      return NextResponse.json(
+        { success: false, error: 'Election not found' },
+        { status: 404 }
+      );
+    }
+
+    if (currentElection.createdBy !== user.id) {
       return NextResponse.json(
         { success: false, error: 'Election not found' },
         { status: 404 }
@@ -171,9 +199,9 @@ export async function PUT(
     }
 
     // Validate dates if provided
-    if (body.startTime && body.endTime) {
-      const start = new Date(body.startTime);
-      const end = new Date(body.endTime);
+    if (updateData.startTime && updateData.endTime) {
+      const start = new Date(updateData.startTime);
+      const end = new Date(updateData.endTime);
 
       if (isNaN(start.getTime()) || isNaN(end.getTime())) {
         return NextResponse.json(
@@ -189,11 +217,11 @@ export async function PUT(
         );
       }
 
-      body.startTime = start;
-      body.endTime = end;
+      updateData.startTime = start;
+      updateData.endTime = end;
     }
 
-    const election = await updateElection(electionId, body);
+    const election = await updateElection(electionId, updateData);
 
     return NextResponse.json({
       success: true,
@@ -238,6 +266,13 @@ export async function DELETE(
     // Get current election to check status
     const currentElection = await getElectionById(electionId);
     if (!currentElection) {
+      return NextResponse.json(
+        { success: false, error: 'Election not found' },
+        { status: 404 }
+      );
+    }
+
+    if (currentElection.createdBy !== user.id) {
       return NextResponse.json(
         { success: false, error: 'Election not found' },
         { status: 404 }

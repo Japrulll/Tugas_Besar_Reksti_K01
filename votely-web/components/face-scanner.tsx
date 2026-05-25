@@ -1,41 +1,100 @@
 "use client"
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useMemo } from 'react'
 import { Button } from '@/components/ui/Button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { AlertCircle, CheckCircle, Camera } from 'lucide-react'
+import { AlertCircle, CheckCircle, Camera, ScanFace } from 'lucide-react'
 
 interface FaceScannerProps {
   onSuccess?: () => void
-  onSuccessWithEmbedding?: (embedding: number[]) => void  // For register mode - returns embedding
+  onSuccessWithEmbedding?: (embedding: number[]) => void
   onSkip?: () => void
   title?: string
   description?: string
-  nik?: string  // NIK for face verification against database
-  mode?: 'verify' | 'register'  // 'verify' = compare with existing, 'register' = capture embedding only
+  nik?: string
+  mode?: 'verify' | 'register'
 }
 
-export function FaceScanner({ 
-  onSuccess, 
+type FaceLocation = {
+  x: number
+  y: number
+  w: number
+  h: number
+}
+
+type LivenessStep = {
+  id: 'center' | 'left' | 'right' | 'final'
+  label: string
+  helper: string
+}
+
+const LIVENESS_STEPS: LivenessStep[] = [
+  { id: 'center', label: 'Hadapkan wajah ke tengah', helper: 'Pastikan wajah terlihat jelas di dalam kamera.' },
+  { id: 'left', label: 'Geser wajah ke kiri', helper: 'Gerakkan kepala sedikit ke sisi kiri layar.' },
+  { id: 'right', label: 'Geser wajah ke kanan', helper: 'Gerakkan kepala sedikit ke sisi kanan layar.' },
+  { id: 'final', label: 'Kembali ke tengah', helper: 'Tahan sebentar untuk verifikasi akhir.' },
+]
+
+function getFaceCenter(face: FaceLocation) {
+  return face.x + face.w / 2
+}
+
+function isStepSatisfied(step: LivenessStep['id'], face: FaceLocation, baselineX: number | null) {
+  if (step === 'center') return true
+  if (baselineX === null) return false
+
+  const currentX = getFaceCenter(face)
+  const threshold = Math.max(face.w * 0.18, 28)
+  if (step === 'left') return currentX < baselineX - threshold
+  if (step === 'right') return currentX > baselineX + threshold
+  return Math.abs(currentX - baselineX) <= Math.max(face.w * 0.14, 24)
+}
+
+export function FaceScanner({
+  onSuccess,
   onSuccessWithEmbedding,
-  onSkip, 
-  title = 'Face Verification', 
-  description = 'Position your face in the center and hold still', 
+  onSkip,
+  title = 'Face Verification',
+  description = 'Ikuti instruksi liveness sebelum verifikasi wajah',
   nik,
   mode = 'verify'
 }: FaceScannerProps) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const verifyingRef = useRef(false)
+  const streamRef = useRef<MediaStream | null>(null)
+  const stableCountRef = useRef(0)
   const [scanned, setScanned] = useState(false)
   const [scanning, setScanning] = useState(false)
   const [cameraReady, setCameraReady] = useState(false)
   const [error, setError] = useState('')
-  const [verifying, setVerifying] = useState(false)
   const [similarity, setSimilarity] = useState<number | null>(null)
-  const [consecutiveSuccess, setConsecutiveSuccess] = useState(0)
   const [statusMessage, setStatusMessage] = useState('')
-  const verifyingRef = useRef(false)
+  const [stepIndex, setStepIndex] = useState(0)
+  const [baselineX, setBaselineX] = useState<number | null>(null)
+  const currentStep = useMemo(() => LIVENESS_STEPS[Math.min(stepIndex, LIVENESS_STEPS.length - 1)], [stepIndex])
+
+  const stopCamera = () => {
+    streamRef.current?.getTracks().forEach((track) => track.stop())
+    streamRef.current = null
+    if (videoRef.current) videoRef.current.srcObject = null
+    setCameraReady(false)
+  }
+
+  const captureFrame = () => {
+    const video = videoRef.current
+    const canvas = canvasRef.current
+    const context = canvas?.getContext('2d')
+    if (!video || !canvas || !context) return null
+
+    const width = video.videoWidth || 1280
+    const height = video.videoHeight || 720
+    canvas.width = width
+    canvas.height = height
+    context.drawImage(video, 0, 0, width, height)
+    return canvas.toDataURL('image/jpeg', 0.92)
+  }
 
   useEffect(() => {
     if (!scanning) return
@@ -44,28 +103,22 @@ export function FaceScanner({
 
     const startCamera = async () => {
       try {
-        console.log('Requesting camera access...')
         const stream = await navigator.mediaDevices.getUserMedia({
           video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } },
+          audio: false,
         })
-        
-        console.log('Camera access granted, stream:', stream)
-        
+
+        streamRef.current = stream
         if (videoRef.current && mounted) {
-          console.log('Setting srcObject...')
           videoRef.current.srcObject = stream
-          
           setTimeout(() => {
-            if (mounted) {
-              console.log('Setting camera ready')
-              setCameraReady(true)
-            }
+            if (mounted) setCameraReady(true)
           }, 500)
         }
       } catch (err) {
         console.error('Camera access error:', err)
         if (mounted) {
-          setError('Unable to access camera. Please check permissions.')
+          setError('Tidak bisa mengakses kamera. Periksa izin kamera Anda.')
           setScanning(false)
           setCameraReady(false)
         }
@@ -76,162 +129,99 @@ export function FaceScanner({
 
     return () => {
       mounted = false
-      if (videoRef.current?.srcObject) {
-        const tracks = (videoRef.current.srcObject as MediaStream).getTracks()
-        tracks.forEach(track => track.stop())
-      }
-      setCameraReady(false)
+      stopCamera()
     }
   }, [scanning])
 
-  // Auto-verify/register every 500ms when camera is ready
   useEffect(() => {
     if (!cameraReady || scanned) return
 
     const interval = setInterval(async () => {
-      // Skip if already verifying
       if (verifyingRef.current) return
+      const imageData = captureFrame()
+      if (!imageData) return
 
+      verifyingRef.current = true
       try {
-        verifyingRef.current = true
-        
-        if (!videoRef.current || !canvasRef.current) {
+        const endpoint = mode === 'register' ? '/api/face-verify/generate-embedding' : '/api/face-verify'
+        const response = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(mode === 'register' ? { image: imageData } : { image: imageData, nik })
+        })
+        const result = await response.json()
+
+        if (!response.ok || (mode === 'register' && !result.success)) {
+          stableCountRef.current = 0
+          const message = result.error || 'Wajah belum terdeteksi'
+          setStatusMessage(message.toLowerCase().includes('face') ? 'Wajah belum terdeteksi' : message)
           verifyingRef.current = false
           return
         }
 
-        const canvas = canvasRef.current
-        const video = videoRef.current
-        const context = canvas.getContext('2d')
-
-        if (!context) {
+        if (!result.face_detected || !result.face_location) {
+          stableCountRef.current = 0
+          setStatusMessage('Wajah belum terdeteksi')
           verifyingRef.current = false
           return
         }
 
-        // Capture frame from video
-        context.drawImage(video, 0, 0, canvas.width, canvas.height)
-        const imageData = canvas.toDataURL('image/jpeg', 0.95)
+        const face = result.face_location as FaceLocation
+        if (stepIndex === 0 && baselineX === null) setBaselineX(getFaceCenter(face))
+        if (typeof result.similarity === 'number') setSimilarity(result.similarity)
 
-        if (mode === 'register') {
-          // Registration mode: Generate embedding only (don't save to DB yet)
-          setStatusMessage('Detecting face...')
-          
-          const response = await fetch('/api/face-verify/generate-embedding', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ image: imageData })
-          })
-
-          const result = await response.json()
-
-          if (!response.ok || !result.success) {
-            const errorMsg = result.error || 'Face detection failed'
-            if (errorMsg.includes('No face detected') || errorMsg.includes('face')) {
-              setStatusMessage('No face detected - adjust position')
-            } else {
-              setStatusMessage(`Error: ${errorMsg}`)
-              console.error('Face capture error:', result)
-            }
-            verifyingRef.current = false
-            return
-          }
-
-          if (result.success && result.embedding) {
-            // Stop camera immediately when face captured
-            if (videoRef.current?.srcObject) {
-              const tracks = (videoRef.current.srcObject as MediaStream).getTracks()
-              tracks.forEach(track => track.stop())
-              videoRef.current.srcObject = null
-            }
-            setStatusMessage('Face captured!')
-            setScanned(true)
-            setVerifying(false)
-            setScanning(false)
-            setCameraReady(false)
-            
-            // Return embedding to parent
-            if (onSuccessWithEmbedding) {
-              onSuccessWithEmbedding(result.embedding)
-            } else if (onSuccess) {
-              onSuccess()
-            }
-          }
+        if (isStepSatisfied(currentStep.id, face, baselineX ?? getFaceCenter(face))) {
+          stableCountRef.current += 1
+          setStatusMessage('Bagus, tahan sebentar...')
         } else {
-          // Verification mode: Compare with existing embedding
-          const response = await fetch('/api/face-verify', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ image: imageData, nik })
-          })
-
-          const result = await response.json()
-
-          if (!response.ok) {
-            if (result.error?.includes('No face embedding found') || result.error?.includes('not found')) {
-              setStatusMessage('Face not registered yet')
-              verifyingRef.current = false
-              return
-            }
-            // Log actual error for debugging
-            console.error('Verification API error:', result)
-            setStatusMessage(result.error || 'Verification failed - retrying...')
-            verifyingRef.current = false
-            return
-          }
-          
-          if (!result.face_detected) {
-            setStatusMessage('No face detected - adjust position')
-            setConsecutiveSuccess(0)
-            verifyingRef.current = false
-            return
-          }
-
-          const currentSimilarity = result.similarity
-          setSimilarity(currentSimilarity)
-
-          // Check if similarity meets threshold
-          if (currentSimilarity >= 0.55) {
-            setStatusMessage('Verifying...')
-            setConsecutiveSuccess(prev => prev + 1)
-            
-            // Auto-verify after 3 consecutive successful frames
-            if (consecutiveSuccess >= 2) {
-              if (videoRef.current?.srcObject) {
-                const tracks = (videoRef.current.srcObject as MediaStream).getTracks()
-                tracks.forEach(track => track.stop())
-                videoRef.current.srcObject = null
-              }
-              setScanned(true)
-              setVerifying(false)
-              setScanning(false)
-              setCameraReady(false)
-              if (onSuccess) onSuccess()
-            }
-          } else if (currentSimilarity >= 0.40) {
-            setStatusMessage('Adjust position')
-            setConsecutiveSuccess(0)
-          } else {
-            setStatusMessage('Move closer to camera')
-            setConsecutiveSuccess(0)
-          }
+          stableCountRef.current = 0
+          setStatusMessage(currentStep.helper)
         }
 
-        verifyingRef.current = false
-        
+        if (stableCountRef.current >= 2) {
+          stableCountRef.current = 0
+          if (stepIndex < LIVENESS_STEPS.length - 1) {
+            setStepIndex((current) => current + 1)
+            verifyingRef.current = false
+            return
+          }
+
+          if (mode === 'verify' && Number(result.similarity || 0) < 0.55) {
+            setStatusMessage('Wajah tidak cocok, coba posisikan ulang')
+            verifyingRef.current = false
+            return
+          }
+
+          stopCamera()
+          setStatusMessage('Liveness terverifikasi')
+          setScanned(true)
+          setScanning(false)
+
+          if (mode === 'register' && result.embedding && onSuccessWithEmbedding) {
+            onSuccessWithEmbedding(result.embedding)
+          } else if (onSuccess) {
+            onSuccess()
+          }
+        }
       } catch (err) {
         console.error('Face scan error:', err)
-        setStatusMessage('Error - retrying...')
+        stableCountRef.current = 0
+        setStatusMessage('Verifikasi wajah gagal, mencoba lagi...')
+      } finally {
         verifyingRef.current = false
       }
-    }, 500)
+    }, 700)
 
     return () => clearInterval(interval)
-  }, [cameraReady, scanned, consecutiveSuccess, onSuccess, mode, nik])
+  }, [baselineX, cameraReady, currentStep, mode, nik, onSuccess, onSuccessWithEmbedding, scanned, stepIndex])
 
   const handleStartScan = () => {
     setError('')
     setStatusMessage('')
+    setSimilarity(null)
+    setBaselineX(null)
+    setStepIndex(0)
+    stableCountRef.current = 0
     setScanning(true)
   }
 
@@ -243,11 +233,7 @@ export function FaceScanner({
           <h3 className="text-lg font-semibold text-foreground mb-2">
             {mode === 'register' ? 'Face Registered' : 'Face Verified'}
           </h3>
-          <p className="text-sm text-muted-foreground">
-            {mode === 'register' 
-              ? 'Your face has been registered successfully' 
-              : 'Your identity has been verified successfully'}
-          </p>
+          <p className="text-sm text-muted-foreground">Liveness dan identitas wajah berhasil diverifikasi.</p>
         </CardContent>
       </Card>
     )
@@ -273,58 +259,39 @@ export function FaceScanner({
         {scanning ? (
           <div className="space-y-4">
             <div className="relative bg-black rounded-lg overflow-hidden aspect-video flex items-center justify-center">
-              <video
-                ref={videoRef}
-                autoPlay
-                playsInline
-                muted
-                className="w-full h-full object-cover"
-                style={{ transform: 'scaleX(-1)' }}
-              />
+              <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" style={{ transform: 'scaleX(-1)' }} />
               {!cameraReady && (
-                <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50">
+                <div className="absolute inset-0 flex items-center justify-center bg-black/50">
                   <div className="text-center">
-                    <div className="w-10 h-10 rounded-full border-2 border-white border-t-transparent animate-spin mx-auto mb-3"></div>
-                    <p className="text-sm text-white">Initializing camera...</p>
+                    <div className="w-10 h-10 rounded-full border-2 border-white border-t-transparent animate-spin mx-auto mb-3" />
+                    <p className="text-sm text-white">Menyalakan kamera...</p>
                   </div>
                 </div>
               )}
               {cameraReady && (
-                <div className="absolute bottom-4 left-0 right-0 text-center pointer-events-none">
-                  <div className="inline-block bg-black bg-opacity-70 px-4 py-2 rounded-lg">
-                    {statusMessage && (
-                      <p className={`text-xs font-sans antialiased ${
-                        statusMessage.includes('Almost') || statusMessage.includes('registered') || statusMessage.includes('Verified')
-                          ? 'text-green-400' 
-                          : statusMessage.includes('Error') 
-                            ? 'text-red-400'
-                            : 'text-yellow-400'
-                      }`}>
-                        {statusMessage}
-                      </p>
-                    )}
-                    {mode === 'verify' && consecutiveSuccess > 0 && (
-                      <p className="text-xs text-green-400 font-sans antialiased">
-                        {Math.round((consecutiveSuccess / 3) * 100)}% verified
-                      </p>
-                    )}
+                <div className="absolute inset-x-4 bottom-4 rounded-xl bg-black/75 px-4 py-3 text-center text-white">
+                  <div className="mb-2 flex items-center justify-center gap-2 text-sm font-semibold">
+                    <ScanFace className="h-4 w-4 text-[#1FD7BE]" />
+                    {currentStep.label}
+                  </div>
+                  <p className="text-xs text-white/75">{statusMessage || currentStep.helper}</p>
+                  {similarity !== null && mode === 'verify' && (
+                    <p className="mt-1 text-[11px] text-emerald-300">Match: {Math.round(similarity * 100)}%</p>
+                  )}
+                  <div className="mt-3 grid grid-cols-4 gap-1">
+                    {LIVENESS_STEPS.map((step, index) => (
+                      <div key={step.id} className={`h-1.5 rounded-full ${index <= stepIndex ? 'bg-[#1FD7BE]' : 'bg-white/20'}`} />
+                    ))}
                   </div>
                 </div>
               )}
             </div>
-            <canvas ref={canvasRef} className="hidden" width={1280} height={720} />
-            {cameraReady && (
-              <p className="text-xs text-muted-foreground text-center">
-                {mode === 'register' 
-                  ? 'Hold still while we capture your face...' 
-                  : 'Hold still while we verify your identity...'}
-              </p>
-            )}
+            <canvas ref={canvasRef} className="hidden" />
           </div>
         ) : (
           <div className="space-y-3">
             <Button onClick={handleStartScan} className="w-full bg-primary hover:bg-primary/90 h-10">
-              {mode === 'register' ? 'Start Face Registration' : 'Start Face Scan'}
+              {mode === 'register' ? 'Start Face Registration' : 'Start Liveness Check'}
             </Button>
             {onSkip && (
               <Button onClick={onSkip} variant="outline" className="w-full h-10">
