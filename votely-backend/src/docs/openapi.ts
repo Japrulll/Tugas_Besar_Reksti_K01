@@ -182,8 +182,8 @@ export const openApiDocument = {
     "/api/auth/face-login": {
       post: {
         tags: ["Auth"],
-        summary: "Login pemilih dengan verifikasi wajah",
-        description: "Field image dapat berupa satu base64 image atau array 3 snapshot.",
+        summary: "Login pemilih dengan NIK",
+        description: "Login mobile hanya membuat sesi pemilih. Verifikasi wajah dilakukan saat meminta voteToken sebelum voting.",
         requestBody: {
           required: true,
           content: {
@@ -193,12 +193,6 @@ export const openApiDocument = {
                 required: ["nik"],
                 properties: {
                   nik: { type: "string" },
-                  image: {
-                    oneOf: [
-                      { type: "string", description: "Base64 image" },
-                      { type: "array", items: { type: "string" }, minItems: 3, maxItems: 3 },
-                    ],
-                  },
                 },
               },
             },
@@ -207,7 +201,7 @@ export const openApiDocument = {
         responses: {
           "200": { description: "Login berhasil" },
           "400": { description: "Data tidak lengkap" },
-          "401": { description: "Verifikasi gagal" },
+          "401": { description: "NIK tidak terdaftar sebagai peserta pemilu" },
         },
       },
     },

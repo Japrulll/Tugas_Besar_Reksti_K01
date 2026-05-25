@@ -27,17 +27,16 @@ authRouter.post("/login", asyncHandler(async (req, res) => {
 }));
 
 authRouter.post("/face-login", asyncHandler(async (req, res) => {
-  const { nik, image } = req.body;
+  const { nik } = req.body;
   if (!nik) throw new HttpError(400, "NIK wajib diisi.");
 
-  const result = await faceLoginVoterAccount(nik, image);
+  const result = await faceLoginVoterAccount(nik);
   setAuthCookie(res, result.token);
   res.json({
     success: true,
-    message: result.bypassed ? "Login berhasil (face bypass aktif)" : "Login berhasil",
+    message: "Login berhasil",
     data: result.user,
     token: result.token,
-    bypassed: result.bypassed,
   });
 }));
 

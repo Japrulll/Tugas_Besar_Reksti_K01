@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { faceLogin } from '../lib/api'
-import FaceScanner from './faceScanner.jsx'
 import { useAuth } from '../App.jsx'
 
 function LoginPage() {
@@ -10,11 +9,9 @@ function LoginPage() {
   const [nik, setNik] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-  const [showFace, setShowFace] = useState(false)
-  const [faceError, setFaceError] = useState('')
 
-  const completeLogin = async (image) => {
-    const data = await faceLogin(nik, image)
+  const completeLogin = async () => {
+    const data = await faceLogin(nik)
     await refreshUser()
     const role = data?.data?.role
     if (role !== 'WARGA') {
@@ -26,7 +23,6 @@ function LoginPage() {
   async function handleLogin(event) {
     event.preventDefault()
     setError('')
-    setFaceError('')
 
     if (!nik) {
       setError('NIK wajib diisi.')
@@ -35,26 +31,9 @@ function LoginPage() {
 
     setLoading(true)
     try {
-      await completeLogin(undefined)
+      await completeLogin()
     } catch (err) {
-      const message = err?.message || 'Login gagal'
-      if (message.toLowerCase().includes('foto wajah')) {
-        setShowFace(true)
-      } else {
-        setError(message)
-      }
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const handleFaceCapture = async (image) => {
-    setFaceError('')
-    setLoading(true)
-    try {
-      await completeLogin(image)
-    } catch (err) {
-      setFaceError(err?.message || 'Verifikasi wajah gagal')
+      setError(err?.message || 'Login gagal')
     } finally {
       setLoading(false)
     }
@@ -68,54 +47,36 @@ function LoginPage() {
           <p className='text-sm text-white/70'>Platform voting aman berbasis blockchain</p>
         </div>
 
-        {showFace ? (
-          <div className='space-y-4'>
-            <FaceScanner
-              title='Verifikasi Wajah'
-              description='Posisikan wajah Anda di tengah bingkai untuk melanjutkan.'
-              onCapture={handleFaceCapture}
-              onCancel={() => setShowFace(false)}
-              busy={loading}
-              confirmLabel='Verifikasi'
-            />
-            {faceError && (
-              <div className='rounded-xl bg-amber-50 border border-amber-200 p-3 text-sm text-amber-700'>
-                {faceError}
-              </div>
-            )}
+        <div className='glass-panel rounded-3xl border-glow p-6 space-y-5'>
+          <div className='space-y-1'>
+            <h1 className='text-2xl font-bold text-slate-800'>Masuk Pemilih</h1>
+            <p className='text-sm text-slate-500'>Masukkan NIK yang sudah didaftarkan admin.</p>
           </div>
-        ) : (
-          <div className='glass-panel rounded-3xl border-glow p-6 space-y-5'>
-            <div className='space-y-1'>
-              <h1 className='text-2xl font-bold text-slate-800'>Masuk Pemilih</h1>
-              <p className='text-sm text-slate-500'>Masukkan NIK yang sudah didaftarkan admin.</p>
+
+          <form onSubmit={handleLogin} className='space-y-4'>
+            <div className='space-y-2'>
+              <label className='text-xs font-semibold text-slate-500'>NIK</label>
+              <input
+                type='text'
+                inputMode='numeric'
+                value={nik}
+                onChange={(event) => setNik(event.target.value)}
+                className='w-full rounded-xl border border-slate-200 bg-white/90 px-4 py-3 text-sm outline-none focus:border-teal-400'
+                placeholder='Masukkan NIK'
+              />
             </div>
 
-            <form onSubmit={handleLogin} className='space-y-4'>
-              <div className='space-y-2'>
-                <label className='text-xs font-semibold text-slate-500'>NIK</label>
-                <input
-                  type='text'
-                  inputMode='numeric'
-                  value={nik}
-                  onChange={(event) => setNik(event.target.value)}
-                  className='w-full rounded-xl border border-slate-200 bg-white/90 px-4 py-3 text-sm outline-none focus:border-teal-400'
-                  placeholder='Masukkan NIK'
-                />
-              </div>
+            {error && <p className='text-sm text-red-600'>{error}</p>}
 
-              {error && <p className='text-sm text-red-600'>{error}</p>}
-
-              <button
-                type='submit'
-                disabled={loading}
-                className='btn-primary w-full rounded-xl py-3 text-sm font-semibold disabled:opacity-70'
-              >
-                {loading ? 'Memeriksa...' : 'Lanjut'}
-              </button>
-            </form>
-          </div>
-        )}
+            <button
+              type='submit'
+              disabled={loading}
+              className='btn-primary w-full rounded-xl py-3 text-sm font-semibold disabled:opacity-70'
+            >
+              {loading ? 'Memeriksa...' : 'Lanjut'}
+            </button>
+          </form>
+        </div>
       </div>
     </div>
   )

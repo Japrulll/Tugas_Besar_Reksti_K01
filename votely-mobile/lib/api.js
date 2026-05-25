@@ -47,11 +47,11 @@ export async function login(nik, password) {
   return data
 }
 
-export async function faceLogin(nik, image) {
+export async function faceLogin(nik) {
   const data = await apiFetch('/api/auth/face-login', {
     method: 'POST',
     auth: false,
-    body: JSON.stringify({ nik, image }),
+    body: JSON.stringify({ nik }),
   })
   if (data?.token) setStoredToken(data.token)
   return data
