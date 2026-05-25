@@ -66,7 +66,7 @@ export async function registerFace(nik: string, image: string) {
   return { success: true, message: "Face registered successfully", user_name: penduduk.namaLengkap, timestamp: new Date().toISOString() };
 }
 
-export async function verifyFace(params: { image: string; nik?: string; userId?: string; electionId?: string }) {
+export async function verifyFace(params: { image: string | string[]; nik?: string; userId?: string; electionId?: string }) {
   let userNik = params.nik;
   if (!userNik && params.userId) {
     const user = await prisma.user.findUnique({ where: { id: params.userId }, include: { penduduk: { select: { nik: true } } } });
@@ -103,14 +103,27 @@ export async function verifyFace(params: { image: string; nik?: string; userId?:
     };
   }
 
-  if (!params.image) throw new HttpError(400, "Image data is required");
+  const images = Array.isArray(params.image) ? params.image.filter(Boolean) : [params.image].filter(Boolean);
+  if (images.length === 0) throw new HttpError(400, "Image data is required");
+
   const referenceEmbedding = (penduduk.foto as any)?.embedding_vector;
   if (!referenceEmbedding || !Array.isArray(referenceEmbedding)) {
     throw new HttpError(404, "No face embedding found for this user. Please register your face first.");
   }
 
-  const result = await callPython("/verify-face", { image: params.image, reference_embedding: referenceEmbedding });
-  const verified = Boolean(result.face_detected) && Number(result.similarity || 0) >= FACE_MATCH_THRESHOLD;
+  const verificationResults = [];
+  for (const image of images) {
+    const result = await callPython("/verify-face", { image, reference_embedding: referenceEmbedding });
+    verificationResults.push(result);
+  }
+
+  const similarities = verificationResults.map((result) => Number(result.similarity || 0));
+  const verified = verificationResults.every((result, index) => (
+    Boolean(result.face_detected) && similarities[index] >= FACE_MATCH_THRESHOLD
+  ));
+  const bestResult = verificationResults.reduce((best, result) => (
+    Number(result.similarity || 0) > Number(best.similarity || 0) ? result : best
+  ), verificationResults[0]);
   let voteToken: string | undefined;
 
   if (verified && params.electionId && penduduk.user?.id) {
@@ -118,10 +131,12 @@ export async function verifyFace(params: { image: string; nik?: string; userId?:
   }
 
   return {
-    similarity: result.similarity,
-    message: verified ? "Success" : result.message || "Face verification failed",
-    face_detected: result.face_detected,
-    face_location: result.face_location,
+    similarity: similarities.length ? Math.min(...similarities) : 0,
+    similarities,
+    snapshotCount: images.length,
+    message: verified ? "Success" : bestResult.message || "Face verification failed",
+    face_detected: verificationResults.every((result) => Boolean(result.face_detected)),
+    face_location: bestResult.face_location,
     user_name: penduduk.namaLengkap,
     verified,
     voteToken,

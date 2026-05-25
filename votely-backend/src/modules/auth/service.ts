@@ -46,7 +46,7 @@ export async function loginVoterAccount(nik: string, password: string) {
   };
 }
 
-export async function faceLoginVoterAccount(nik: string, image?: string) {
+export async function faceLoginVoterAccount(nik: string, image?: string | string[]) {
   if (!nik) throw new HttpError(400, "NIK wajib diisi.");
 
   const penduduk = await prisma.penduduk.findUnique({
@@ -66,7 +66,7 @@ export async function faceLoginVoterAccount(nik: string, image?: string) {
   }
 
   if (!env.faceBypassEnabled) {
-    if (!image) throw new HttpError(400, "Foto wajah wajib dikirim.");
+    if (!image || (Array.isArray(image) && image.length === 0)) throw new HttpError(400, "Foto wajah wajib dikirim.");
     const result = await verifyFace({ nik, image });
     if (!result.verified) throw new HttpError(401, result.message || "Verifikasi wajah gagal.");
   }

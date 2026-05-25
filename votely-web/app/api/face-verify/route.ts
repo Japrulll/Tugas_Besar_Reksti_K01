@@ -11,7 +11,9 @@ export async function POST(req: NextRequest) {
   try {
     const { image, nik } = await req.json()
 
-    if (!image) {
+    const images = Array.isArray(image) ? image.filter(Boolean) : [image].filter(Boolean)
+
+    if (images.length === 0) {
       return NextResponse.json(
         { error: 'Image data is required' },
         { status: 400 }
@@ -85,29 +87,38 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // Call Python face recognition service with reference embedding
-    const response = await fetch(`${PYTHON_API_URL}/verify-face`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ 
-        image,
-        reference_embedding: referenceEmbedding
+    const results = []
+    for (const snapshot of images) {
+      const response = await fetch(`${PYTHON_API_URL}/verify-face`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          image: snapshot,
+          reference_embedding: referenceEmbedding
+        })
       })
-    })
 
-    if (!response.ok) {
-      throw new Error(`Python API returned ${response.status}`)
+      if (!response.ok) {
+        throw new Error(`Python API returned ${response.status}`)
+      }
+
+      results.push(await response.json())
     }
 
-    const result = await response.json()
+    const similarities = results.map((result) => Number(result.similarity || 0))
+    const bestResult = results.reduce((best, result) => (
+      Number(result.similarity || 0) > Number(best.similarity || 0) ? result : best
+    ), results[0])
 
     return NextResponse.json({
-      similarity: result.similarity,
-      message: result.message,
-      face_detected: result.face_detected,
-      face_location: result.face_location,
+      similarity: similarities.length ? Math.min(...similarities) : 0,
+      similarities,
+      snapshotCount: images.length,
+      message: bestResult.message,
+      face_detected: results.every((result) => Boolean(result.face_detected)),
+      face_location: bestResult.face_location,
       user_name: penduduk.namaLengkap,
       timestamp: new Date().toISOString()
     })
