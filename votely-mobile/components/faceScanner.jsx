@@ -3,6 +3,7 @@ import { generateEmbedding } from '../lib/api'
 import {
   captureEsp32WifiFrame,
   createBrowserFrameCapture,
+  getEsp32WifiPreviewFrame,
   getSavedEsp32CameraUrl,
   isEsp32CameraUrlValid,
   testEsp32WifiCamera,
@@ -11,11 +12,15 @@ import {
 const SNAPSHOT_COUNT = 3
 const CAMERA_BROWSER = 'browser'
 const CAMERA_ESP32_WIFI = 'esp32-wifi'
+const PREVIEW_INTERVAL_MS = 600
+const MAX_PREVIEW_FAILURES = 3
 
 function FaceScanner({ title, description, onCapture, onCancel, busy, confirmLabel }) {
   const videoRef = useRef(null)
   const streamRef = useRef(null)
   const checkingRef = useRef(false)
+  const previewLoadingRef = useRef(false)
+  const previewFailuresRef = useRef(0)
   const snapshotsRef = useRef([])
   const [error, setError] = useState('')
   const [cameraReady, setCameraReady] = useState(false)
@@ -25,6 +30,8 @@ function FaceScanner({ title, description, onCapture, onCancel, busy, confirmLab
   const [esp32Status, setEsp32Status] = useState('')
   const [esp32Connected, setEsp32Connected] = useState(false)
   const [testingEsp32, setTestingEsp32] = useState(false)
+  const [previewImage, setPreviewImage] = useState('')
+  const [previewError, setPreviewError] = useState('')
 
   const stopBrowserCamera = () => {
     if (streamRef.current) {
@@ -90,6 +97,9 @@ function FaceScanner({ title, description, onCapture, onCancel, busy, confirmLab
       const result = await testEsp32WifiCamera(esp32Url)
       setEsp32Url(result.baseUrl)
       setEsp32Connected(true)
+      setPreviewImage('')
+      setPreviewError('')
+      previewFailuresRef.current = 0
       setEsp32Status(`Terhubung ke ${result.device} (${result.ip})`)
     } catch (err) {
       setEsp32Status('Tidak terjangkau')
@@ -103,8 +113,48 @@ function FaceScanner({ title, description, onCapture, onCancel, busy, confirmLab
     setCapturing(false)
     snapshotsRef.current = []
     setError('')
+    setPreviewError('')
     setCameraSource(source)
   }
+
+  useEffect(() => {
+    if (cameraSource !== CAMERA_ESP32_WIFI || !esp32Connected || error) {
+      previewLoadingRef.current = false
+      if (cameraSource !== CAMERA_ESP32_WIFI) setPreviewImage('')
+      return undefined
+    }
+
+    let active = true
+
+    const loadPreviewFrame = async () => {
+      if (!active || previewLoadingRef.current) return
+
+      previewLoadingRef.current = true
+      try {
+        const image = await getEsp32WifiPreviewFrame(esp32Url)
+        if (!active) return
+        previewFailuresRef.current = 0
+        setPreviewImage(image)
+        setPreviewError('')
+      } catch (err) {
+        if (!active) return
+        previewFailuresRef.current += 1
+        if (previewFailuresRef.current >= MAX_PREVIEW_FAILURES) {
+          setPreviewError(err?.message || 'Preview terputus, tes koneksi ulang.')
+        }
+      } finally {
+        previewLoadingRef.current = false
+      }
+    }
+
+    loadPreviewFrame()
+    const interval = window.setInterval(loadPreviewFrame, PREVIEW_INTERVAL_MS)
+
+    return () => {
+      active = false
+      window.clearInterval(interval)
+    }
+  }, [cameraSource, error, esp32Connected, esp32Url])
 
   useEffect(() => {
     if (!currentCameraReady || !capturing || busy || error) return undefined
@@ -192,6 +242,8 @@ function FaceScanner({ title, description, onCapture, onCancel, busy, confirmLab
                 setEsp32Url(event.target.value)
                 setEsp32Connected(false)
                 setEsp32Status('')
+                setPreviewImage('')
+                setPreviewError('')
               }}
               placeholder='http://192.168.1.50'
               className='w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-teal-400'
@@ -219,16 +271,30 @@ function FaceScanner({ title, description, onCapture, onCancel, busy, confirmLab
           {error}
         </div>
       ) : cameraSource === CAMERA_ESP32_WIFI ? (
-        <div className='relative w-full aspect-[4/3] rounded-2xl overflow-hidden bg-slate-900/80 flex items-center justify-center p-6 text-center'>
-          <div className='space-y-2'>
-            <div className={`mx-auto h-3 w-3 rounded-full ${esp32Connected ? 'bg-emerald-400' : 'bg-amber-300'}`} />
-            <p className='text-sm font-semibold text-white'>
-              {esp32Connected ? 'ESP32-CAM siap capture' : 'Hubungkan ESP32-CAM terlebih dahulu'}
-            </p>
-            <p className='text-xs text-white/70'>
-              Pastikan HP dan ESP32-CAM berada di jaringan WiFi yang sama.
-            </p>
-          </div>
+        <div className='relative w-full aspect-[4/3] rounded-2xl overflow-hidden bg-slate-900/80 flex items-center justify-center text-center'>
+          {previewImage ? (
+            <img src={previewImage} alt='Preview ESP32-CAM' className='h-full w-full object-cover' />
+          ) : (
+            <div className='space-y-2 p-6'>
+              <div className={`mx-auto h-3 w-3 rounded-full ${esp32Connected ? 'bg-emerald-400' : 'bg-amber-300'}`} />
+              <p className='text-sm font-semibold text-white'>
+                {esp32Connected ? 'Memuat preview...' : 'Hubungkan ESP32-CAM terlebih dahulu'}
+              </p>
+              <p className='text-xs text-white/70'>
+                Pastikan HP dan ESP32-CAM berada di jaringan WiFi yang sama.
+              </p>
+            </div>
+          )}
+          {esp32Connected && (
+            <div className='absolute left-3 top-3 rounded-full bg-black/55 px-3 py-1 text-[11px] font-semibold text-white'>
+              {capturing ? 'Memverifikasi...' : 'Live ESP32-CAM'}
+            </div>
+          )}
+          {previewError && (
+            <div className='absolute inset-x-3 bottom-3 rounded-xl bg-red-500/90 px-3 py-2 text-xs font-semibold text-white'>
+              {previewError}
+            </div>
+          )}
         </div>
       ) : (
         <div className='relative w-full aspect-[4/3] rounded-2xl overflow-hidden bg-slate-900/80'>

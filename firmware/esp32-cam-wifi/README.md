@@ -35,4 +35,6 @@ Gunakan power 5V yang stabil. Setelah upload selesai, lepaskan `IO0` dari `GND`,
 4. Masukkan URL, contoh `http://192.168.1.50`.
 5. Klik `Tes Koneksi`, lalu `Mulai Verifikasi Wajah`.
 
+App juga bisa menerima URL JPEG langsung dari firmware camera web server lain, misalnya `http://192.168.1.50/cam-hi.jpg`. Mobile akan meminta backend mengambil gambar tersebut supaya tidak terkena batasan CORS browser.
+
 Jika aplikasi berjalan di HTTPS production, browser dapat memblokir request HTTP lokal ke ESP32-CAM. Untuk demo lokal, jalankan Votely Mobile lewat HTTP di jaringan yang sama.

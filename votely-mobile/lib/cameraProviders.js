@@ -1,7 +1,8 @@
-const ESP32_CAMERA_URL_KEY = 'votely_esp32_camera_url'
-const CAPTURE_TIMEOUT_MS = 5000
+import { apiFetch } from './api'
 
-function normalizeBaseUrl(value) {
+const ESP32_CAMERA_URL_KEY = 'votely_esp32_camera_url'
+
+function normalizeCameraUrl(value) {
   const trimmed = String(value || '').trim().replace(/\/+$/, '')
   if (!trimmed) throw new Error('IP atau URL ESP32-CAM wajib diisi.')
 
@@ -16,25 +17,8 @@ function normalizeBaseUrl(value) {
     throw new Error('URL ESP32-CAM harus memakai http:// atau https://.')
   }
 
-  return url.origin
-}
-
-function withTimeout(ms = CAPTURE_TIMEOUT_MS) {
-  const controller = new AbortController()
-  const timeout = window.setTimeout(() => controller.abort(), ms)
-  return {
-    signal: controller.signal,
-    clear: () => window.clearTimeout(timeout),
-  }
-}
-
-function blobToDataUrl(blob) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => resolve(String(reader.result || ''))
-    reader.onerror = () => reject(new Error('Gagal membaca gambar dari ESP32-CAM.'))
-    reader.readAsDataURL(blob)
-  })
+  const isBaseUrl = url.pathname === '/' && !url.search
+  return isBaseUrl ? url.origin : url.toString()
 }
 
 export function getSavedEsp32CameraUrl() {
@@ -47,7 +31,7 @@ export function getSavedEsp32CameraUrl() {
 
 export function saveEsp32CameraUrl(value) {
   try {
-    localStorage.setItem(ESP32_CAMERA_URL_KEY, normalizeBaseUrl(value))
+    localStorage.setItem(ESP32_CAMERA_URL_KEY, normalizeCameraUrl(value))
   } catch {
     // localStorage can be unavailable in private or locked-down contexts.
   }
@@ -55,70 +39,70 @@ export function saveEsp32CameraUrl(value) {
 
 export function isEsp32CameraUrlValid(value) {
   try {
-    normalizeBaseUrl(value)
+    normalizeCameraUrl(value)
     return true
   } catch {
     return false
   }
 }
 
-export async function testEsp32WifiCamera(baseUrl) {
-  const normalizedUrl = normalizeBaseUrl(baseUrl)
-  const timeout = withTimeout(CAPTURE_TIMEOUT_MS)
+export async function testEsp32WifiCamera(cameraUrl) {
+  const normalizedUrl = normalizeCameraUrl(cameraUrl)
 
   try {
-    const response = await fetch(`${normalizedUrl}/health`, {
-      method: 'GET',
-      cache: 'no-store',
-      signal: timeout.signal,
+    const data = await apiFetch('/api/iot-camera/health', {
+      method: 'POST',
+      body: JSON.stringify({ cameraUrl: normalizedUrl }),
     })
 
-    if (!response.ok) throw new Error(`ESP32-CAM membalas status ${response.status}.`)
-    const data = await response.json().catch(() => ({}))
     if (data?.ok === false) throw new Error('ESP32-CAM belum siap.')
 
     saveEsp32CameraUrl(normalizedUrl)
     return {
       baseUrl: normalizedUrl,
       device: data?.device || 'Votely-CAM',
-      ip: data?.ip || normalizedUrl.replace(/^https?:\/\//, ''),
+      ip: data?.ip || data?.captureUrl || normalizedUrl.replace(/^https?:\/\//, ''),
     }
   } catch (err) {
-    if (err?.name === 'AbortError') {
-      throw new Error('ESP32-CAM tidak merespons. Periksa IP dan jaringan WiFi.')
-    }
-    throw err
-  } finally {
-    timeout.clear()
+    throw new Error(err?.message || 'ESP32-CAM tidak merespons. Periksa IP dan jaringan WiFi.')
   }
 }
 
-export async function captureEsp32WifiFrame(baseUrl) {
-  const normalizedUrl = normalizeBaseUrl(baseUrl)
-  const timeout = withTimeout(CAPTURE_TIMEOUT_MS)
+export async function captureEsp32WifiFrame(cameraUrl) {
+  const normalizedUrl = normalizeCameraUrl(cameraUrl)
 
   try {
-    const response = await fetch(`${normalizedUrl}/capture?ts=${Date.now()}`, {
-      method: 'GET',
-      cache: 'no-store',
-      signal: timeout.signal,
+    const data = await apiFetch('/api/iot-camera/capture', {
+      method: 'POST',
+      body: JSON.stringify({ cameraUrl: normalizedUrl }),
     })
 
-    if (!response.ok) throw new Error(`Capture ESP32-CAM gagal (${response.status}).`)
-
-    const blob = await response.blob()
-    if (!blob.type.includes('image') || blob.size === 0) {
+    if (!data?.image) {
       throw new Error('ESP32-CAM tidak mengirim JPEG valid.')
     }
 
-    return blobToDataUrl(blob)
+    return data.image
   } catch (err) {
-    if (err?.name === 'AbortError') {
-      throw new Error('Capture ESP32-CAM timeout. Coba ulangi.')
+    throw new Error(err?.message || 'Capture ESP32-CAM timeout. Coba ulangi.')
+  }
+}
+
+export async function getEsp32WifiPreviewFrame(cameraUrl) {
+  const normalizedUrl = normalizeCameraUrl(cameraUrl)
+
+  try {
+    const data = await apiFetch('/api/iot-camera/preview', {
+      method: 'POST',
+      body: JSON.stringify({ cameraUrl: normalizedUrl }),
+    })
+
+    if (!data?.image) {
+      throw new Error('ESP32-CAM tidak mengirim preview valid.')
     }
-    throw err
-  } finally {
-    timeout.clear()
+
+    return data.image
+  } catch (err) {
+    throw new Error(err?.message || 'Preview ESP32-CAM terputus.')
   }
 }
 
