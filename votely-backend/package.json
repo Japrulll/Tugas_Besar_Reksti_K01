@@ -9,9 +9,9 @@
     "start": "node dist/index.js",
     "typecheck": "tsc --noEmit",
     "test": "npm run build && node --test dist/shared/serializers.test.js",
-    "prisma:generate": "prisma generate --schema ../votely-web/prisma/schema.prisma --generator backendClient",
-    "prisma:migrate": "prisma migrate deploy --schema ../votely-web/prisma/schema.prisma",
-    "prisma:migrate:dev": "prisma migrate dev --schema ../votely-web/prisma/schema.prisma"
+    "prisma:generate": "prisma generate --schema ../votely-web/prisma/schema.prisma --config ../votely-web/prisma.config.js --generator backendClient",
+    "prisma:migrate": "prisma migrate deploy --schema ../votely-web/prisma/schema.prisma --config ../votely-web/prisma.config.js",
+    "prisma:migrate:dev": "prisma migrate dev --schema ../votely-web/prisma/schema.prisma --config ../votely-web/prisma.config.js"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.0.0",

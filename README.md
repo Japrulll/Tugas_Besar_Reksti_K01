@@ -13,7 +13,7 @@ Pastikan sudah terinstall:
 
 - Node.js 20 atau lebih baru
 - npm
-- Python 3.11 atau lebih baru
+- Python 3.11 untuk service `face-recognition`
 - Docker dan Docker Compose, jika ingin menjalankan semua service dengan Docker
 - Database PostgreSQL atau Supabase
 
@@ -68,8 +68,10 @@ Jalankan dari root project:
 
 ```bash
 npm install
-cd votely-web && npm install
-cd ../votely-backend && npm install
+cd votely-web
+npm install
+cd ../votely-backend
+npm install
 cd ..
 ```
 
@@ -95,10 +97,16 @@ cd ..
 
 ```bash
 cd face-recognition
-python -m venv venv
+py -3.11 -m venv venv
 venv\Scripts\activate
 pip install -r requirements.txt
 python api_server.py
+```
+
+Jika command `py -3.11` tidak tersedia, gunakan executable Python 3.11 secara langsung, misalnya:
+
+```bash
+C:\Users\Carlen\anaconda3\envs\sign_env\python.exe -m venv venv
 ```
 
 Service berjalan di:
